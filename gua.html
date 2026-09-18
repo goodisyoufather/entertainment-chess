@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>易经AI算卦</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Noto Serif SC", "STSong", "SimSun", serif;
+  background: linear-gradient(135deg, #1a0a00 0%, #2d1810 50%, #1a0a00 100%);
+  min-height: 100vh; color: #e8d5b7; padding: 20px;
+}
+.container { max-width: 640px; margin: 0 auto; }
+.header { text-align: center; padding: 30px 0 20px; }
+.yin-yang {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(to bottom, #e8d5b7 50%, #1a0a00 50%);
+  margin: 0 auto 20px; position: relative; border: 3px solid #c9a96e;
+  animation: rotate 8s linear infinite;
+}
+.yin-yang::before, .yin-yang::after {
+  content: ''; position: absolute; width: 40px; height: 40px;
+  border-radius: 50%; left: 50%; transform: translateX(-50%);
+}
+.yin-yang::before { top: 0; background: #e8d5b7; }
+.yin-yang::after { bottom: 0; background: #1a0a00; }
+@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+h1 { font-size: 32px; color: #c9a96e; text-shadow: 0 0 20px rgba(201,169,110,0.3); }
+.subtitle { color: #8b7355; font-size: 14px; margin-top: 8px; }
+
+.history-panel {
+  background: rgba(201,169,110,0.06); border: 1px solid rgba(201,169,110,0.15);
+  border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+}
+.history-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; cursor: pointer; user-select: none;
+}
+.history-header:hover { background: rgba(201,169,110,0.08); }
+.history-header span:first-child { color: #c9a96e; font-size: 14px; font-weight: 600; }
+.history-toggle { color: #8b7355; font-size: 12px; transition: transform 0.3s; }
+.history-toggle.open { transform: rotate(180deg); }
+.history-list { display: none; padding: 0 20px 16px; }
+.history-empty { color: #6b5b4a; font-size: 13px; text-align: center; padding: 20px 0; }
+.history-item {
+  padding: 12px 14px; margin-bottom: 8px;
+  background: rgba(0,0,0,0.2); border-radius: 10px;
+  border: 1px solid rgba(201,169,110,0.1);
+  cursor: pointer; transition: all 0.2s;
+}
+.history-item:hover { border-color: rgba(201,169,110,0.3); background: rgba(201,169,110,0.08); }
+.history-time { font-size: 11px; color: #6b5b4a; margin-bottom: 4px; }
+.history-gua { font-size: 15px; color: #c9a96e; font-weight: 600; margin-bottom: 2px; }
+.history-q { font-size: 12px; color: #8b7355; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.modal-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); z-index: 1000;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+  background: linear-gradient(135deg, #2d1810, #1a0a00);
+  border: 1px solid rgba(201,169,110,0.3);
+  border-radius: 16px; padding: 28px; width: 100%; max-width: 400px;
+  animation: modalIn 0.3s ease-out;
+}
+@keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.modal-box h3 { color: #c9a96e; font-size: 18px; margin-bottom: 8px; text-align: center; }
+.modal-desc { color: #8b7355; font-size: 13px; text-align: center; margin-bottom: 20px; }
+
+.swipe-area {
+  position: relative; width: 100%; height: 80px;
+  background: rgba(0,0,0,0.2); border-radius: 40px;
+  border: 1px solid rgba(201,169,110,0.2);
+  margin: 16px 0; overflow: hidden; touch-action: none;
+}
+.swipe-start, .swipe-end {
+  position: absolute; width: 50px; height: 50px; border-radius: 50%;
+  top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: bold; user-select: none;
+}
+.swipe-start {
+  left: 15px; background: linear-gradient(135deg, #c9a96e, #a08050);
+  color: #1a0a00; cursor: grab; z-index: 2; touch-action: none;
+}
+.swipe-start:active { cursor: grabbing; }
+.swipe-end {
+  right: 15px; background: rgba(201,169,110,0.1);
+  border: 2px dashed #c9a96e; color: #c9a96e;
+}
+.swipe-hint {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); color: #6b5b4a;
+  font-size: 13px; pointer-events: none; white-space: nowrap;
+}
+.swipe-status { text-align: center; font-size: 13px; min-height: 20px; margin-bottom: 10px; }
+
+.code-input-area { display: none; animation: fadeIn 0.3s; }
+.code-hint { color: #a09070; font-size: 13px; margin-bottom: 10px; text-align: center; }
+.code-hint span { color: #c9a96e; font-weight: bold; font-size: 20px; letter-spacing: 4px; }
+.code-input-area input {
+  width: 100%; padding: 12px 14px; margin-bottom: 12px;
+  border: 1px solid rgba(201,169,110,0.3); border-radius: 10px;
+  background: rgba(0,0,0,0.3); color: #e8d5b7;
+  font-size: 16px; font-family: inherit; text-align: center; letter-spacing: 6px;
+}
+.code-input-area input:focus { outline: none; border-color: #c9a96e; }
+.modal-close {
+  width: 100%; padding: 12px; margin-top: 10px;
+  background: transparent; border: 1px solid rgba(201,169,110,0.3);
+  border-radius: 8px; color: #8b7355;
+  font-size: 14px; font-family: inherit; cursor: pointer;
+}
+.modal-close:hover { border-color: #c9a96e; color: #c9a96e; }
+
+.step {
+  background: rgba(201,169,110,0.08); border: 1px solid rgba(201,169,110,0.2);
+  border-radius: 16px; padding: 28px; display: none;
+  animation: fadeIn 0.5s ease-out;
+}
+.step.active { display: block; }
+.step-num {
+  display: inline-block; width: 32px; height: 32px; line-height: 32px;
+  text-align: center; border-radius: 50%; background: rgba(201,169,110,0.2);
+  color: #c9a96e; font-size: 14px; font-weight: bold; margin-right: 10px;
+}
+.step h2 { color: #c9a96e; font-size: 20px; margin-bottom: 8px; display: flex; align-items: center; }
+.step .desc { color: #8b7355; font-size: 14px; margin-bottom: 20px; }
+.step textarea {
+  width: 100%; padding: 14px;
+  border: 1px solid rgba(201,169,110,0.3); border-radius: 10px;
+  background: rgba(0,0,0,0.3); color: #e8d5b7;
+  font-size: 15px; font-family: inherit; resize: vertical; min-height: 80px;
+}
+.step textarea::placeholder { color: #6b5b4a; }
+.step textarea:focus { outline: none; border-color: #c9a96e; box-shadow: 0 0 10px rgba(201,169,110,0.2); }
+
+.btn {
+  width: 100%; padding: 16px; margin-top: 16px;
+  background: linear-gradient(135deg, #c9a96e, #a08050);
+  border: none; border-radius: 10px; color: #1a0a00;
+  font-size: 18px; font-weight: bold; font-family: inherit;
+  cursor: pointer; transition: all 0.3s;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(201,169,110,0.4); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-secondary { background: transparent; border: 2px solid #c9a96e; color: #c9a96e; }
+.btn-secondary:hover { background: rgba(201,169,110,0.1); }
+.btn-group { display: flex; gap: 12px; margin-top: 16px; }
+.btn-group .btn { margin-top: 0; }
+
+.welcome-content { text-align: center; padding: 20px 0; }
+.welcome-content p { color: #a09070; font-size: 15px; line-height: 2; margin-bottom: 12px; }
+.welcome-content .highlight { color: #c9a96e; }
+
+.progress-wrap { margin-bottom: 20px; }
+.progress-track { width: 100%; height: 4px; background: rgba(201,169,110,0.15); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #c9a96e, #e8d5b7); border-radius: 2px; transition: width 0.4s; }
+.progress-text { text-align: center; color: #8b7355; font-size: 12px; margin-top: 8px; }
+
+.loading-section { text-align: center; padding: 60px 20px; display: none; }
+.loading-section.active { display: block; }
+.ai-thinking { font-size: 18px; color: #c9a96e; margin-bottom: 30px; }
+.ai-thinking::after {
+  content: ''; display: inline-block; width: 16px; height: 16px;
+  border: 2px solid #c9a96e; border-top-color: transparent;
+  border-radius: 50%; margin-left: 10px;
+  animation: spin 1s linear infinite; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-log { max-width: 400px; margin: 0 auto; text-align: left; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 16px; font-size: 13px; color: #8b7355; line-height: 2; }
+.loading-log .done { color: #7ab87a; }
+.loading-log .current { color: #c9a96e; }
+
+.result-section { display: none; animation: fadeIn 0.8s ease-out; }
+.result-section.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.gua-header { text-align: center; padding: 20px 0; border-bottom: 1px solid rgba(201,169,110,0.2); margin-bottom: 20px; }
+.gua-header h2 { font-size: 28px; color: #c9a96e; margin: 0 0 8px; }
+.gua-header p { font-size: 14px; color: #8b7355; margin: 0; }
+
+.yao-container { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 24px 0; padding: 20px; background: rgba(201,169,110,0.05); border-radius: 12px; }
+.yao { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 280px; }
+.yao-num { width: 36px; text-align: center; color: #8b7355; font-size: 12px; }
+.yao-line { flex: 1; height: 8px; border-radius: 4px; background: #c9a96e; position: relative; }
+.yao-line.broken { background: transparent; }
+.yao-line.broken::before, .yao-line.broken::after { content: ''; position: absolute; top: 0; height: 100%; width: 45%; background: #c9a96e; border-radius: 4px; }
+.yao-line.broken::before { left: 0; }
+.yao-line.broken::after { right: 0; }
+.yao-line.changing { box-shadow: 0 0 15px rgba(201,169,110,0.6); animation: pulse 2s infinite; }
+.yao-line.changing.broken::before, .yao-line.changing.broken::after { box-shadow: 0 0 15px rgba(201,169,110,0.6); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.yao-label { width: 64px; text-align: right; font-size: 12px; color: #8b7355; }
+
+.gua-info { display: flex; flex-direction: column; gap: 16px; }
+.info-card { background: rgba(201,169,110,0.08); border: 1px solid rgba(201,169,110,0.15); border-radius: 12px; padding: 20px; }
+.info-card h3 { color: #c9a96e; font-size: 16px; margin: 0 0 12px; }
+.info-card p, .info-card div { color: #d4c4a8; font-size: 14px; line-height: 1.8; margin: 0; }
+
+.error-msg { color: #c96e6e; text-align: center; padding: 10px; font-size: 14px; line-height: 1.8; }
+.error-msg small { color: #8b5a5a; }
+.retry-btn { margin-top: 10px; padding: 8px 20px; background: rgba(201,169,110,0.15); border: 1px solid #c9a96e; border-radius: 6px; color: #c9a96e; font-family: inherit; cursor: pointer; font-size: 13px; }
+.retry-btn:hover { background: rgba(201,169,110,0.25); }
+
+.chat-section { margin-top: 24px; background: rgba(201,169,110,0.06); border: 1px solid rgba(201,169,110,0.15); border-radius: 16px; padding: 20px; }
+.chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(201,169,110,0.15); }
+.chat-header h3 { color: #c9a96e; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+.chat-round { font-size: 12px; color: #8b7355; background: rgba(201,169,110,0.1); padding: 4px 10px; border-radius: 12px; }
+.chat-messages { max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding-right: 4px; }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: rgba(201,169,110,0.05); }
+.chat-messages::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.3); border-radius: 2px; }
+.chat-msg { display: flex; gap: 10px; align-items: flex-start; animation: msgIn 0.3s ease-out; }
+@keyframes msgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.chat-avatar.user { background: rgba(201,169,110,0.2); }
+.chat-avatar.ai { background: rgba(201,169,110,0.3); }
+.chat-bubble { flex: 1; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; word-break: break-word; }
+.chat-bubble.user { background: rgba(201,169,110,0.12); color: #e8d5b7; border: 1px solid rgba(201,169,110,0.15); }
+.chat-bubble.ai { background: rgba(0,0,0,0.25); color: #d4c4a8; border: 1px solid rgba(201,169,110,0.1); }
+.chat-bubble.ai strong { color: #e8d5b7; }
+.chat-bubble.ai h4 { color: #c9a96e; margin: 10px 0 6px; font-size: 14px; }
+.chat-input-wrap { display: flex; gap: 10px; }
+.chat-input-wrap textarea { flex: 1; padding: 12px 14px; border: 1px solid rgba(201,169,110,0.25); border-radius: 10px; background: rgba(0,0,0,0.3); color: #e8d5b7; font-size: 14px; font-family: inherit; resize: none; height: 48px; line-height: 1.5; }
+.chat-input-wrap textarea:focus { outline: none; border-color: #c9a96e; }
+.chat-input-wrap textarea::placeholder { color: #5a4a3a; }
+.chat-send-btn { padding: 0 20px; background: linear-gradient(135deg, #c9a96e, #a08050); border: none; border-radius: 10px; color: #1a0a00; font-size: 14px; font-weight: bold; font-family: inherit; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.chat-send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201,169,110,0.3); }
+.chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.chat-tip { text-align: center; color: #6b5b4a; font-size: 12px; margin-top: 10px; }
+.chat-limit { text-align: center; color: #c96e6e; font-size: 13px; padding: 20px; background: rgba(201,169,110,0.05); border-radius: 10px; margin-top: 10px; }
+
+.footer { text-align: center; padding: 30px 0 10px; color: #5a4a3a; font-size: 12px; }
+.footer a { color: #8b7355; text-decoration: none; }
+.footer a:hover { color: #c9a96e; }
+
+@keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes noticeIn { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+/* 排队页面 */
+.queue-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+.queue-overlay.active { display: flex; }
+.queue-box { background: linear-gradient(135deg, #2d1810, #1a0a00); border: 1px solid rgba(201,169,110,0.3); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; text-align: center; animation: queueIn 0.4s ease-out; }
+@keyframes queueIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.queue-yin-yang { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(to bottom, #e8d5b7 50%, #1a0a00 50%); margin: 0 auto 20px; position: relative; border: 2px solid #c9a96e; animation: rotate 3s linear infinite; }
+.queue-yin-yang::before, .queue-yin-yang::after { content: ''; position: absolute; width: 30px; height: 30px; border-radius: 50%; left: 50%; transform: translateX(-50%); }
+.queue-yin-yang::before { top: 0; background: #e8d5b7; }
+.queue-yin-yang::after { bottom: 0; background: #1a0a00; }
+.queue-box h3 { color: #c9a96e; font-size: 20px; margin-bottom: 8px; }
+.queue-desc { color: #8b7355; font-size: 13px; margin-bottom: 24px; }
+.queue-info { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+.queue-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+.queue-row:not(:last-child) { border-bottom: 1px solid rgba(201,169,110,0.1); }
+.queue-label { color: #8b7355; font-size: 13px; }
+.queue-value { color: #c9a96e; font-size: 15px; font-weight: 600; }
+.queue-progress-wrap { margin-bottom: 20px; }
+.queue-progress-track { width: 100%; height: 4px; background: rgba(201,169,110,0.15); border-radius: 2px; overflow: hidden; }
+.queue-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #c9a96e, #e8d5b7); border-radius: 2px; transition: width 0.3s; }
+.queue-progress-text { color: #8b7355; font-size: 12px; margin-top: 10px; }
+.queue-cancel { width: 100%; padding: 12px; background: transparent; border: 1px solid rgba(201,169,110,0.3); border-radius: 8px; color: #8b7355; font-size: 14px; font-family: inherit; cursor: pointer; }
+.queue-cancel:hover { border-color: #c9a96e; color: #c9a96e; }
+
+/* 图片上传 */
+.image-upload-wrap { margin: 12px 0; }
+.image-upload-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px dashed rgba(201,169,110,0.4); border-radius: 8px; color: #8b7355; font-size: 13px; cursor: pointer; transition: all 0.2s; background: rgba(0,0,0,0.15); }
+.image-upload-btn:hover { border-color: #c9a96e; color: #c9a96e; }
+.image-preview { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+.image-preview-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(201,169,110,0.2); }
+.image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.image-preview-item .del-img { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; background: rgba(201,50,50,0.8); color: #fff; border: none; border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.chat-image-btn { padding: 0 14px; background: transparent; border: 1px solid rgba(201,169,110,0.3); border-radius: 10px; color: #c9a96e; font-size: 18px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.chat-image-btn:hover { background: rgba(201,169,110,0.1); border-color: #c9a96e; }
+.chat-image-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding-left: 52px; }
+.chat-image-preview .image-preview-item { width: 80px; height: 80px; }
+
+/* 管理员按钮 */
+.admin-btn { position: absolute; top: 20px; right: 20px; background: rgba(201,169,110,0.1); border: 1px solid rgba(201,169,110,0.3); border-radius: 8px; color: #8b7355; font-size: 12px; padding: 6px 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+.admin-btn:hover { background: rgba(201,169,110,0.2); color: #c9a96e; border-color: #c9a96e; }
+.header { position: relative; }
+
+/* 管理面板 */
+.admin-panel { display: none; position: fixed; top: 20px; right: 20px; width: 320px; background: linear-gradient(135deg, #2d1810, #1a0a00); border: 1px solid rgba(201,169,110,0.3); border-radius: 16px; padding: 20px; z-index: 3000; box-shadow: 0 8px 32px rgba(0,0,0,0.6); animation: adminIn 0.3s ease-out; }
+.admin-panel.active { display: block; }
+@keyframes adminIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(201,169,110,0.2); }
+.admin-header h3 { color: #c9a96e; font-size: 15px; margin: 0; }
+.admin-close { background: transparent; border: none; color: #8b7355; font-size: 16px; cursor: pointer; padding: 4px; }
+.admin-close:hover { color: #c9a96e; }
+.admin-status-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.admin-node { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid rgba(201,169,110,0.1); }
+.admin-node-icon { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.admin-node-icon.ok { background: #7ab87a; box-shadow: 0 0 8px rgba(122,184,122,0.4); }
+.admin-node-icon.err { background: #c96e6e; box-shadow: 0 0 8px rgba(201,110,110,0.4); }
+.admin-node-icon.busy { background: #c9a96e; box-shadow: 0 0 8px rgba(201,169,110,0.4); animation: pulse 1.5s infinite; }
+.admin-node-name { color: #e8d5b7; font-size: 13px; flex: 1; }
+.admin-node-status { color: #8b7355; font-size: 11px; }
+.admin-log h4 { color: #c9a96e; font-size: 12px; margin: 0 0 8px; }
+.admin-log-content { max-height: 150px; overflow-y: auto; font-size: 11px; color: #8b7355; line-height: 1.8; }
+.admin-log-item { padding: 3px 0; border-bottom: 1px solid rgba(201,169,110,0.05); }
+.admin-log-item.ok { color: #7ab87a; }
+.admin-log-item.err { color: #c96e6e; }
+
+/* 手机端适配 */
+@media (max-width: 640px) {
+  body { padding: 12px; }
+  .container { max-width: 100%; }
+  .header { padding: 20px 0 14px; }
+  .yin-yang { width: 60px; height: 60px; margin-bottom: 14px; border-width: 2px; }
+  .yin-yang::before, .yin-yang::after { width: 30px; height: 30px; }
+  h1 { font-size: 24px; }
+  .subtitle { font-size: 12px; margin-top: 6px; }
+  .history-header { padding: 12px 14px; }
+  .history-list { padding: 0 14px 12px; }
+  .history-item { padding: 10px 12px; }
+  .history-gua { font-size: 14px; }
+  .step { padding: 18px 16px; border-radius: 12px; }
+  .step-num { width: 26px; height: 26px; line-height: 26px; font-size: 12px; }
+  .step h2 { font-size: 17px; }
+  .step .desc { font-size: 13px; margin-bottom: 14px; }
+  .step textarea { padding: 12px; font-size: 14px; min-height: 70px; }
+  .btn { padding: 14px; font-size: 16px; border-radius: 8px; }
+  .btn-group { gap: 8px; }
+  .welcome-content p { font-size: 14px; line-height: 1.8; }
+  .gua-header h2 { font-size: 22px; }
+  .yao-container { padding: 14px; }
+  .info-card { padding: 14px; }
+  .chat-section { padding: 14px; }
+  .chat-messages { max-height: 300px; }
+  .chat-bubble { font-size: 13px; padding: 10px 12px; }
+  .chat-input-wrap textarea { font-size: 13px; height: 42px; }
+  .chat-send-btn { padding: 0 14px; font-size: 13px; }
+  .modal-box { padding: 20px 16px; }
+  .queue-box { padding: 28px 20px; }
+  .admin-btn { top: 10px; right: 10px; font-size: 11px; padding: 4px 8px; }
+  .admin-panel { top: 10px; right: 10px; left: 10px; width: auto; padding: 16px; }
+  .footer { font-size: 11px; }
+}
+.fanwork-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px; margin-top: 14px;
+  background: rgba(201,169,110,0.1); border: 1px solid rgba(201,169,110,0.4);
+  border-radius: 10px; color: #c9a96e; font-size: 15px; font-weight: 600;
+  font-family: inherit; text-decoration: none; cursor: pointer; transition: all 0.3s;
+}
+.fanwork-btn:hover { background: rgba(201,169,110,0.2); border-color: #c9a96e; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(201,169,110,0.2); }
+</style>
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="yin-yang"></div>
+    <h1>易经AI算卦</h1>
+    <p class="subtitle">以心问卦，以AI解象，六爻皆由心生</p>
+    <button class="admin-btn" onclick="showAdminLogin()" title="管理员视角">⚙️ 管理</button>
+  </div>
+
+  <div class="history-panel" id="historyPanel">
+    <div class="history-header" onclick="toggleHistory()">
+      <span>问卦历史</span>
+      <span class="history-toggle" id="historyToggle">▼</span>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  
+
+  <div class="progress-wrap" id="progressWrap" style="display:none;">
+    <div class="progress-track"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+    <p class="progress-text" id="progressText">准备中...</p>
+  </div>
+
+  <div class="step active" id="step0">
+    <div class="welcome-content">
+      <p>这不是随机抛铜钱的"娱乐占卜"。</p>
+      <p class="highlight">AI 将根据你的真实回答，综合分析你的处境、心态与诉求，<br>从易经六十四卦中为你推演出最契合的一卦。</p>
+      <p>请认真回答接下来的 <span class="highlight">6个问题</span>，<br>最后补充你想说的话，AI 将为你完整解卦。</p>
+      <p class="highlight">算卦后还可与AI解卦师追问，最多30轮。</p>
+      <button class="btn" onclick="goStep(1)">开始问卦</button>
+      <a class="fanwork-btn" href="https://daming-fengyun12-production.up.railway.app/" target="_blank">⚔️ 前往同人作品《大明风云》</a>
+    </div>
+  </div>
+
+  <div class="step" id="step1">
+    <h2><span class="step-num">1</span>你心中想问的事情是什么？</h2>
+    <p class="desc">请具体描述你当前的困惑或想占卜的事项，越详细越好。也可上传一张相关图片，18码会结合图片为你推卦。</p>
+    <textarea id="ans1" placeholder="例如：我正在考虑是否要换一份工作..." rows="4"></textarea>
+    <div class="image-upload-wrap" id="step1ImageWrap">
+      <input type="file" id="step1ImageInput" accept="image/*" style="display:none" onchange="handleStep1Image(this)">
+      <div class="image-upload-btn" onclick="document.getElementById('step1ImageInput').click()"><span>📎 上传图片（可选）</span></div>
+      <div class="image-preview" id="step1ImagePreview"></div>
+    </div>
+    <div class="btn-group"><button class="btn" onclick="nextStep(1)">下一步</button></div>
+  </div>
+
+  <div class="step" id="step2">
+    <h2><span class="step-num">2</span>你目前所处的环境/处境如何？</h2>
+    <p class="desc">描述你周围的人际关系、工作环境、家庭状况等外部因素。</p>
+    <textarea id="ans2" placeholder="例如：公司最近在进行组织架构调整..." rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(1)">上一步</button>
+      <button class="btn" onclick="nextStep(2)">下一步</button>
+    </div>
+  </div>
+
+  <div class="step" id="step3">
+    <h2><span class="step-num">3</span>你近期的心态和情绪状态？</h2>
+    <p class="desc">诚实面对自己的内心，你现在是焦虑、平静、兴奋，还是迷茫？</p>
+    <textarea id="ans3" placeholder="例如：我最近比较焦虑，晚上睡不好..." rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(2)">上一步</button>
+      <button class="btn" onclick="nextStep(3)">下一步</button>
+    </div>
+  </div>
+
+  <div class="step" id="step4">
+    <h2><span class="step-num">4</span>在这件事中，你觉得自己扮演什么角色？</h2>
+    <p class="desc">你是主导者、跟随者、旁观者，还是被动卷入？你的主动权有多大？</p>
+    <textarea id="ans4" placeholder="例如：我感觉自己比较被动..." rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(3)">上一步</button>
+      <button class="btn" onclick="nextStep(4)">下一步</button>
+    </div>
+  </div>
+
+  <div class="step" id="step5">
+    <h2><span class="step-num">5</span>你希望这件事最终达成什么样的结果？</h2>
+    <p class="desc">描述你内心最真实的期望，不要考虑现实限制。</p>
+    <textarea id="ans5" placeholder="例如：我希望能在事业上有所突破..." rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(4)">上一步</button>
+      <button class="btn" onclick="nextStep(5)">下一步</button>
+    </div>
+  </div>
+
+  <div class="step" id="step6">
+    <h2><span class="step-num">6</span>有什么阻碍或困难让你犹豫不决？</h2>
+    <p class="desc">是什么在拖住你的脚步？恐惧、责任、资源不足，还是其他？</p>
+    <textarea id="ans6" placeholder="例如：主要是担心新工作不稳定..." rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(5)">上一步</button>
+      <button class="btn" onclick="nextStep(6)">下一步</button>
+    </div>
+  </div>
+
+  <div class="step" id="step7">
+    <h2><span class="step-num">7</span>还有什么想补充的？</h2>
+    <p class="desc">任何你觉得有助于AI更准确地为你推卦的信息，都可以写在这里。</p>
+    <textarea id="ans7" placeholder="例如：我的生辰是农历三月初五，属蛇...（选填）" rows="4"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="prevStep(6)">上一步</button>
+      <button class="btn" onclick="submitDivination()">提交，AI推卦</button>
+    </div>
+  </div>
+
+  <div class="loading-section" id="loadingSection">
+    <p class="ai-thinking">AI 正在根据你的回答推演卦象</p>
+    <div class="loading-log" id="loadingLog">
+      <div class="done">读取你的回答...</div>
+      <div class="current">分析处境与心态...</div>
+      <div>匹配六十四卦...</div>
+      <div>推演六爻变化...</div>
+      <div>撰写解卦文...</div>
+    </div>
+  </div>
+
+  
+<!-- 管理员登录 -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal-box" style="max-width:320px;">
+    <h3>管理员验证</h3>
+    <p class="modal-desc">请输入管理密钥</p>
+    <input type="password" id="adminKeyInput" placeholder="输入密钥" onkeydown="if(event.key==='Enter')verifyAdminKey()" style="width:100%;padding:12px;border:1px solid rgba(201,169,110,0.3);border-radius:10px;background:rgba(0,0,0,0.3);color:#e8d5b7;font-size:16px;text-align:center;margin-bottom:12px;">
+    <button class="btn" onclick="verifyAdminKey()" style="margin-top:0;">进入</button>
+    <button class="modal-close" onclick="closeAdminLogin()">取消</button>
+  </div>
+</div>
+
+<!-- 管理面板 -->
+<div class="admin-panel" id="adminPanel">
+  <div class="admin-header">
+    <h3>🔧 AI 节点监控面板</h3>
+    <button class="admin-close" onclick="closeAdminPanel()">✕</button>
+  </div>
+  <div class="admin-content">
+    <div class="admin-status-list" id="adminStatusList"></div>
+    <div class="admin-log" id="adminLog">
+      <h4>最近日志</h4>
+      <div id="adminLogContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 排队页面 -->
+<div class="queue-overlay" id="queueOverlay">
+  <div class="queue-box">
+    <div class="queue-yin-yang"></div>
+    <h3>正在排队问卦</h3>
+    <p class="queue-desc">当前问卦人数较多，请稍候</p>
+    <div class="queue-info">
+      <div class="queue-row"><span class="queue-label">前方排队</span><span class="queue-value" id="queueAhead">3 人</span></div>
+      <div class="queue-row"><span class="queue-label">预计等待</span><span class="queue-value" id="queueWait">约 15 秒</span></div>
+    </div>
+    <div class="queue-progress-wrap">
+      <div class="queue-progress-track"><div class="queue-progress-bar" id="queueProgressBar"></div></div>
+      <p class="queue-progress-text" id="queueProgressText">正在连接卦象服务器...</p>
+    </div>
+    <button class="queue-cancel" onclick="cancelQueue()">取消排队</button>
+  </div>
+</div>
+
+<div class="result-section" id="resultSection">
+    <div class="gua-header">
+      <h2 id="guaName"></h2>
+      <p id="guaSymbol"></p>
+    </div>
+    <div class="yao-container" id="yaoContainer"></div>
+    <div class="gua-info">
+      <div class="info-card"><h3>卦辞</h3><p id="guaText"></p></div>
+      <div class="info-card"><h3>象曰</h3><p id="xiangText"></p></div>
+      <div class="info-card"><h3>AI 解卦</h3><div id="aiInterpretation"></div></div>
+    </div>
+
+    <div class="chat-section" id="chatSection">
+      <div class="chat-header">
+        <h3>追问解卦师</h3>
+        <span class="chat-round" id="chatRound">0 / 30 轮</span>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-wrap" id="chatInputWrap">
+        <input type="file" id="chatImageInput" accept="image/*" style="display:none" onchange="handleChatImage(this)">
+        <button class="chat-image-btn" onclick="document.getElementById('chatImageInput').click()" title="上传图片">📎</button>
+        <textarea id="chatInput" placeholder="对卦象有疑问？输入你的问题..." rows="1"></textarea>
+        <button class="chat-send-btn" id="chatSendBtn" onclick="sendChat()">发送</button>
+      </div>
+      <div class="chat-image-preview" id="chatImagePreview"></div>
+      <p class="chat-tip" id="chatTip">算卦后如有疑惑，可继续向AI解卦师提问</p>
+    </div>
+
+    <button class="btn" onclick="resetAll()" style="margin-top:24px;">再问一卦</button>
+  </div>
+
+  <div class="footer">
+    <p>Powered by Agnes AI <a href="https://platform.agnes-ai.com/" target="_blank">platform.agnes-ai.com</a></p>
+  </div>
+</div>
+
+<script>
+/* ==================== API 配置（分段拼接） ==================== */
+var apiConfigs = [
+  { name: "Agnes中国站", url: "https://api.agnes-ai.cn/v1/chat/completions", key: "sk-HGMEknn58oWMb8hc3oZwBr7rWWOA0A5U1w4DCKdYkJLy9Rxf", model: "agnes-2.0-flash", supportsImage: false },
+  { name: "Agnes国际站", url: "https://apihub.agnes-ai.com/v1/chat/completions", key: "sk-0KgfMqpkaJb89GJNPUzbbEtIyD8V0QdVtTmvWt2iPBRXP6kI", model: "agnes-2.5-flash", supportsImage: false },
+  { name: "智谱AI", url: "https://open.bigmodel.cn/api/paas/v4/chat/completions", key: "b92733de00fa4dd48c33c91f63a56880.DYXHnU1VVtHWoxo6", model: "glm-4.7-flash", supportsImage: true }
+];
+var currentApiIndex = 0;
+var apiKey = apiConfigs[0].key;
+var apiUrl = apiConfigs[0].url;
+var apiModel = apiConfigs[0].model;
+
+/* ==================== 全局状态 ==================== */
+var currentStep = 0;
+var totalSteps = 7;
+var chatHistory = [];
+var chatRound = 0;
+var maxRounds = 30;
+var guaContext = "";
+var lastAnswers = [];
+var currentRecordId = 0;
+var step1ImageBase64 = "";
+var chatImageBase64 = "";
+var queueTimer = null;
+var queueRetryCount = 0;
+var maxQueueRetries = 10;
+var isQueueing = false;
+var queueTargetFunc = null;
+var apiSwitchNoticeShown = false;
+var adminKey = "201368";
+var nodeStatus = { "Agnes中国站": "idle", "Agnes国际站": "idle", "智谱AI": "idle" };
+var adminLogs = [];
+
+/* ==================== 管理员功能 ==================== */
+function showAdminLogin() {
+  document.getElementById("adminLoginModal").classList.add("active");
+  setTimeout(function() { document.getElementById("adminKeyInput").focus(); }, 100);
+}
+function closeAdminLogin() {
+  document.getElementById("adminLoginModal").classList.remove("active");
+  document.getElementById("adminKeyInput").value = "";
+}
+function verifyAdminKey() {
+  var input = document.getElementById("adminKeyInput").value.trim();
+  if (input !== adminKey) { alert("密钥错误"); return; }
+  closeAdminLogin();
+  showAdminPanel();
+}
+function showAdminPanel() {
+  document.getElementById("adminPanel").classList.add("active");
+  updateAdminPanel();
+}
+function closeAdminPanel() {
+  document.getElementById("adminPanel").classList.remove("active");
+}
+function setNodeStatus(name, status, detail) {
+  nodeStatus[name] = status;
+  var time = new Date().toLocaleTimeString("zh-CN");
+  var log = { time: time, name: name, status: status, detail: detail || "" };
+  adminLogs.unshift(log);
+  if (adminLogs.length > 20) adminLogs.pop();
+  updateAdminPanel();
+}
+function updateAdminPanel() {
+  var list = document.getElementById("adminStatusList");
+  if (!list) return;
+  var html = "";
+  for (var name in nodeStatus) {
+    var st = nodeStatus[name];
+    var iconClass = st === "ok" ? "ok" : (st === "busy" ? "busy" : "err");
+    var statusText = st === "ok" ? "正常" : (st === "busy" ? "回复中..." : (st === "idle" ? "待机" : "报错"));
+    html += '<div class="admin-node"><div class="admin-node-icon ' + iconClass + '"></div><span class="admin-node-name">' + name + '</span><span class="admin-node-status">' + statusText + '</span></div>';
+  }
+  list.innerHTML = html;
+  var logContent = document.getElementById("adminLogContent");
+  if (logContent) {
+    var logHtml = "";
+    for (var i = 0; i < adminLogs.length; i++) {
+      var lg = adminLogs[i];
+      var cls = lg.status === "ok" ? "ok" : (lg.status === "busy" ? "" : "err");
+      logHtml += '<div class="admin-log-item ' + cls + '">[' + lg.time + '] ' + lg.name + ' - ' + lg.status + (lg.detail ? " (" + lg.detail + ")" : "") + '</div>';
+    }
+    logContent.innerHTML = logHtml || "<div style=\'color:#5a4a3a\'>暂无日志</div>";
+  }
+}
+
+/* ==================== 排队功能 ==================== */
+function showQueue() {
+  isQueueing = true;
+  queueRetryCount = 0;
+  document.getElementById("queueOverlay").classList.add("active");
+  updateQueue();
+}
+function updateQueue() {
+  if (!isQueueing) return;
+  queueRetryCount++;
+  var ahead = Math.max(1, 8 - queueRetryCount * 2 + Math.floor(Math.random() * 2));
+  var waitSec = Math.max(5, 30 - queueRetryCount * 3 + Math.floor(Math.random() * 5));
+  document.getElementById("queueAhead").textContent = ahead + " 人";
+  document.getElementById("queueWait").textContent = "约 " + waitSec + " 秒";
+  document.getElementById("queueProgressText").textContent = "第 " + queueRetryCount + " 次尝试连接...";
+  var pct = Math.min(95, queueRetryCount * 10);
+  document.getElementById("queueProgressBar").style.width = pct + "%";
+  if (queueRetryCount >= maxQueueRetries) {
+    document.getElementById("queueProgressText").textContent = "排队超时，请稍后重试";
+    document.getElementById("queueProgressBar").style.width = "100%";
+    setTimeout(cancelQueue, 2000);
+    return;
+  }
+  queueTimer = setTimeout(function() {
+    if (isQueueing && queueTargetFunc) queueTargetFunc();
+  }, waitSec * 1000);
+}
+function cancelQueue() {
+  isQueueing = false;
+  if (queueTimer) { clearTimeout(queueTimer); queueTimer = null; }
+  document.getElementById("queueOverlay").classList.remove("active");
+  document.getElementById("queueProgressBar").style.width = "0%";
+  queueTargetFunc = null;
+}
+function hideQueue() {
+  isQueueing = false;
+  if (queueTimer) { clearTimeout(queueTimer); queueTimer = null; }
+  document.getElementById("queueOverlay").classList.remove("active");
+  document.getElementById("queueProgressBar").style.width = "100%";
+  document.getElementById("queueProgressText").textContent = "连接成功！";
+  queueTargetFunc = null;
+}
+function isQueueError(err) {
+  var msg = (err.message || "").toLowerCase();
+  var status = err.status || 0;
+  return status === 429 || status === 503 || status === 502 ||
+    msg.indexOf("rate limit") !== -1 || msg.indexOf("queue") !== -1 ||
+    msg.indexOf("limit") !== -1 || msg.indexOf("too many") !== -1 ||
+    msg.indexOf("busy") !== -1 || msg.indexOf("unavailable") !== -1 ||
+    msg.indexOf("timeout") !== -1;
+}
+function showNotice(msg, type) {
+  type = type || "info";
+  var colors = { info: "#c9a96e", success: "#7ab87a", error: "#c96e6e" };
+  var notice = document.createElement("div");
+  notice.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(45,24,16,0.95);border:1px solid " + colors[type] + ";color:" + colors[type] + ";padding:12px 24px;border-radius:10px;font-size:14px;z-index:9999;animation:noticeIn 0.4s ease-out;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
+  notice.textContent = msg;
+  document.body.appendChild(notice);
+  setTimeout(function() { notice.style.opacity = "0"; notice.style.transition = "opacity 0.5s"; setTimeout(function() { notice.remove(); }, 500); }, 4000);
+}
+function switchToNextApi() {
+  var hasImage = step1ImageBase64 || chatImageBase64;
+  var startIndex = currentApiIndex;
+  do {
+    currentApiIndex++;
+    if (currentApiIndex >= apiConfigs.length) currentApiIndex = 0;
+    var cfg = apiConfigs[currentApiIndex];
+    // 如果有图片，跳过不支持图片的节点
+    if (hasImage && !cfg.supportsImage) continue;
+    apiKey = cfg.key;
+    apiUrl = cfg.url;
+    apiModel = cfg.model;
+    if (!apiSwitchNoticeShown) {
+      showNotice("AI出现了一次报错，已自动切换到" + cfg.name + "修复", "success");
+      apiSwitchNoticeShown = true;
+    }
+    return true;
+  } while (currentApiIndex !== startIndex);
+  // 所有节点都试过了，回到第一个
+  currentApiIndex = 0;
+  var firstCfg = apiConfigs[0];
+  apiKey = firstCfg.key;
+  apiUrl = firstCfg.url;
+  apiModel = firstCfg.model;
+  return false;
+}
+function resetApiSwitch() {
+  currentApiIndex = 0;
+  apiKey = apiConfigs[0].key;
+  apiUrl = apiConfigs[0].url;
+  apiModel = apiConfigs[0].model;
+  apiSwitchNoticeShown = false;
+}
+
+/* ==================== 图片上传 ==================== */
+function compressImage(file, maxWidth, quality, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement("canvas");
+      var w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      var dataUrl = canvas.toDataURL("image/jpeg", quality);
+      callback(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function handleStep1Image(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { alert("图片不能超过 10MB"); input.value = ""; return; }
+  compressImage(file, 800, 0.7, function(dataUrl) {
+    step1ImageBase64 = dataUrl;
+    var preview = document.getElementById("step1ImagePreview");
+    preview.innerHTML = '<div class="image-preview-item"><img src="' + step1ImageBase64 + '"><button class="del-img" onclick="removeStep1Image()">×</button></div>';
+  });
+  input.value = "";
+}
+function removeStep1Image() {
+  step1ImageBase64 = "";
+  document.getElementById("step1ImagePreview").innerHTML = "";
+}
+function handleChatImage(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { alert("图片不能超过 10MB"); input.value = ""; return; }
+  compressImage(file, 800, 0.7, function(dataUrl) {
+    chatImageBase64 = dataUrl;
+    var preview = document.getElementById("chatImagePreview");
+    preview.innerHTML = '<div class="image-preview-item"><img src="' + chatImageBase64 + '"><button class="del-img" onclick="removeChatImage()">×</button></div>';
+  });
+  input.value = "";
+}
+function removeChatImage() {
+  chatImageBase64 = "";
+  document.getElementById("chatImagePreview").innerHTML = "";
+}
+function buildUserMessage(text, imageBase64) {
+  var currentCfg = apiConfigs[currentApiIndex];
+  var supportsImg = currentCfg && currentCfg.supportsImage;
+  if (!imageBase64 || !supportsImg) {
+    // 如果当前节点不支持图片，但用户传了图片，在文字里加提示
+    var finalText = text;
+    if (imageBase64 && !supportsImg) {
+      finalText = text + "\n\n[注：用户上传了一张图片，但当前AI节点不支持图片识别]";
+    }
+    return { role: "user", content: finalText };
+  }
+  return {
+    role: "user",
+    content: [
+      { type: "text", text: text },
+      { type: "image_url", image_url: { url: imageBase64 } }
+    ]
+  };
+}
+function stripImagesFromHistory(history) {
+  var clean = [];
+  for (var i = 0; i < history.length; i++) {
+    var msg = history[i];
+    if (msg.role === "user" && typeof msg.content === "object" && Array.isArray(msg.content)) {
+      var textOnly = "";
+      for (var j = 0; j < msg.content.length; j++) {
+        if (msg.content[j].type === "text") textOnly = msg.content[j].text;
+      }
+      clean.push({ role: "user", content: textOnly || "（图片消息）" });
+    } else {
+      clean.push({ role: msg.role, content: msg.content });
+    }
+  }
+  return clean;
+}
+
+/* ==================== 历史记录 ==================== */
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem("yijing_history") || "[]"); }
+  catch(e) { return []; }
+}
+function saveHistory(arr) { localStorage.setItem("yijing_history", JSON.stringify(arr)); }
+function renderHistory() {
+  var list = document.getElementById("historyList");
+  var arr = getHistory();
+  if (arr.length === 0) { list.innerHTML = '<p class="history-empty">暂无问卦记录</p>'; return; }
+  var html = "";
+  for (var i = 0; i < arr.length; i++) {
+    var item = arr[i];
+    var q = item.question || "";
+    html += '<div class="history-item" onclick="loadHistory(' + item.id + ')">';
+    html += '<div class="history-time">' + (item.time || "") + '</div>';
+    html += '<div class="history-gua">' + (item.guaName || "未知卦") + '</div>';
+    html += '<div class="history-q">' + (q.length > 30 ? q.substring(0, 30) + "..." : q) + '</div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+function toggleHistory() {
+  var list = document.getElementById("historyList");
+  var toggle = document.getElementById("historyToggle");
+  if (list.style.display === "block") { list.style.display = "none"; toggle.classList.remove("open"); }
+  else { list.style.display = "block"; toggle.classList.add("open"); }
+}
+function loadHistory(id) {
+  var arr = getHistory();
+  var item = null;
+  for (var i = 0; i < arr.length; i++) { if (arr[i].id === id) { item = arr[i]; break; } }
+  if (!item) return;
+  document.getElementById("guaName").textContent = item.guaName || "未知卦";
+  document.getElementById("guaSymbol").textContent = item.guaSymbol || "";
+  document.getElementById("guaText").textContent = item.guaText || "";
+  document.getElementById("xiangText").textContent = item.xiangText || "";
+  renderYaoFromText(item.yaoText || "");
+  renderMarkdownToElement(document.getElementById("aiInterpretation"), item.interpretation || "");
+  guaContext = item.guaContext || "";
+  chatHistory = item.chatHistory || [];
+  chatRound = item.chatRound || 0;
+  currentRecordId = item.id;
+  var container = document.getElementById("chatMessages");
+  container.innerHTML = "";
+  for (var j = 0; j < chatHistory.length; j++) {
+    var msg = chatHistory[j];
+    if (msg.role === "user" || msg.role === "assistant") addChatMessage(msg.role, msg.content, false);
+  }
+  document.getElementById("chatInputWrap").style.display = chatRound >= maxRounds ? "none" : "flex";
+  document.getElementById("chatTip").style.display = chatRound >= maxRounds ? "none" : "block";
+  var limitEl = document.querySelector(".chat-limit");
+  if (limitEl) limitEl.remove();
+  if (chatRound >= maxRounds) showChatLimit();
+  updateChatRound();
+  hideAllSteps();
+  resetApiSwitch();
+  document.getElementById("resultSection").classList.add("active");
+  window.scrollTo(0, 0);
+}
+function hideAllSteps() {
+  for (var i = 0; i <= 7; i++) document.getElementById("step" + i).classList.remove("active");
+  document.getElementById("loadingSection").classList.remove("active");
+  document.getElementById("resultSection").classList.remove("active");
+  document.getElementById("progressWrap").style.display = "none";
+}
+
+/* ==================== 步骤导航 ==================== */
+function goStep(n) {
+  document.getElementById("step" + currentStep).classList.remove("active");
+  document.getElementById("step" + n).classList.add("active");
+  currentStep = n;
+  updateProgress();
+}
+function nextStep(n) {
+  var val = document.getElementById("ans" + n).value.trim();
+  if (!val) { alert("请先填写你的回答"); return; }
+  goStep(n + 1);
+}
+function prevStep(n) { goStep(n); }
+function updateProgress() {
+  var wrap = document.getElementById("progressWrap");
+  if (currentStep === 0) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  var pct = (currentStep / totalSteps) * 100;
+  document.getElementById("progressBarFill").style.width = pct + "%";
+  document.getElementById("progressText").textContent = "问卦进度：" + currentStep + " / " + totalSteps;
+}
+
+/* ==================== 推卦流程 ==================== */
+function submitDivination() {
+  document.getElementById("step7").classList.remove("active");
+  document.getElementById("progressWrap").style.display = "none";
+  document.getElementById("loadingSection").classList.add("active");
+  animateLoadingLog();
+  fetchAIGua();
+}
+function animateLoadingLog() {
+  var items = document.getElementById("loadingLog").children;
+  var idx = 1;
+  var timer = setInterval(function() {
+    if (idx < items.length) {
+      items[idx].className = "current";
+      if (idx > 0) items[idx-1].className = "done";
+      idx++;
+    } else { clearInterval(timer); }
+  }, 1200);
+}
+
+async function fetchAIGua() {
+  lastAnswers = [];
+  for (var i = 1; i <= 7; i++) {
+    var el = document.getElementById("ans" + i);
+    lastAnswers.push(el && el.value ? el.value.trim() : "（无补充）");
+  }
+  var prompt = "你是一位精通易经的资深解卦师，拥有三十年推演经验。现在有一位求卦者向你问卦，请你根据他的真实回答，从易经六十四卦中为他推演出最契合当前处境的一卦，并给出完整的解卦。\n\n" +
+    "【求卦者回答】\n" +
+    "1. 心中想问的事情：" + lastAnswers[0] + "\n" +
+    "2. 目前所处的环境/处境：" + lastAnswers[1] + "\n" +
+    "3. 近期的心态和情绪状态：" + lastAnswers[2] + "\n" +
+    "4. 在这件事中扮演的角色：" + lastAnswers[3] + "\n" +
+    "5. 希望达成的结果：" + lastAnswers[4] + "\n" +
+    "6. 阻碍或困难：" + lastAnswers[5] + "\n" +
+    "7. 补充信息：" + lastAnswers[6] + "\n\n" +
+    "【要求】\n" +
+    "1. 根据以上信息，综合分析求卦者的处境、心态、诉求与阻碍，从易经六十四卦中选择最适合的一卦。\n" +
+    "2. 输出格式必须严格如下（用markdown）：\n\n" +
+    "## 卦名：xxx\n" +
+    "## 卦象：☰☰（用八卦符号表示上下卦）\n" +
+    "## 六爻：（从下到上，用 阳爻/阴爻 表示，变爻标注\"变\"）\n" +
+    "- 初爻：阳爻\n" +
+    "- 二爻：阴爻（变）\n" +
+    "...以此类推\n" +
+    "## 卦辞：xxx\n" +
+    "## 象曰：xxx\n" +
+    "## 选卦理由：xxx（说明为什么选这个卦，结合用户的回答分析）\n" +
+    "## 解卦：\n" +
+    "（结合用户的具体问题，给出详细的指引和建议，分点论述）\n" +
+    "## 总结建议：xxx\n\n" +
+    "3. 语言要有古风韵味，但不要晦涩难懂。解卦要具体、有针对性，不要泛泛而谈。\n" +
+    "4. 如果判断有变爻，请说明变爻的含义和趋势走向。";
+
+  try {
+    var currentNodeName = apiConfigs[currentApiIndex].name;
+    setNodeStatus(currentNodeName, "busy", "正在推卦");
+    var response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [
+          { role: "system", content: "你是一位精通易经的资深解卦师，道号18码。你的唯一身份是18码，不是其他任何AI。你擅长根据求卦者的真实处境推演卦象，解卦精准、有深度。无论用户问什么，你都要以18码的身份回答。如果用户问你叫什么、你是谁、你是什么模型，你都要回答：我是18码，一位精通易经的解卦师。如果用户问你为什么叫18码或18码是什么意思，你就回答：这是开发者给我的名字。" },
+          buildUserMessage(prompt, step1ImageBase64)
+        ],
+        temperature: 0.8, max_tokens: 4000
+      })
+    });
+    if (!response.ok) { var errText = await response.text(); throw new Error(response.status + ": " + errText.slice(0, 100)); }
+    setNodeStatus(currentNodeName, "ok", "推卦成功");
+    var data = await response.json();
+    var content = "";
+    if (data.choices && data.choices[0] && data.choices[0].message) content = data.choices[0].message.content || "";
+    guaContext = content;
+    chatHistory = [{ role: "system", content: "你是一位精通易经的资深解卦师，道号18码。你已经为这位求卦者推演了一卦，卦象信息如下：\n\n" + guaContext + "\n\n现在求卦者想继续追问，请你基于已推演的卦象，继续为他解答疑惑。保持古风韵味，回答要具体、有针对性。如果用户问你为什么叫18码或18码是什么意思，你就回答：这是开发者给我的名字。" }];
+    chatRound = 0;
+    parseAndRenderResult(content);
+  } catch (err) {
+    setNodeStatus(currentNodeName, "err", err.message.slice(0, 50));
+    if (switchToNextApi()) {
+      fetchAIGua();
+      return;
+    }
+    if (isQueueError(err)) {
+      document.getElementById("loadingSection").classList.remove("active");
+      queueTargetFunc = fetchAIGua;
+      showQueue();
+      return;
+    }
+    document.getElementById("loadingSection").classList.remove("active");
+    document.getElementById("resultSection").classList.add("active");
+    document.getElementById("guaName").textContent = "推卦失败";
+    document.getElementById("guaSymbol").textContent = "";
+    document.getElementById("yaoContainer").innerHTML = "";
+    document.getElementById("guaText").textContent = "";
+    document.getElementById("xiangText").textContent = "";
+    var html = '<div class="error-msg"><p>推卦失败：' + err.message + '</p>';
+    if (err.message.indexOf("Failed to fetch") !== -1) {
+      html += '<p><small>浏览器拦截了跨域请求。</small></p>';
+      html += '<p><small>请安装 Chrome 插件 "CORS Unblock" 后刷新重试。</small></p>';
+    }
+    html += '<button class="retry-btn" onclick="retryAIGua()">重试</button></div>';
+    document.getElementById("aiInterpretation").innerHTML = html;
+  }
+}
+
+function parseAndRenderResult(content) {
+  hideQueue();
+  removeStep1Image();
+  document.getElementById("loadingSection").classList.remove("active");
+  document.getElementById("resultSection").classList.add("active");
+
+  var nameMatch = content.match(/##\s*卦名[：:]\s*(.+)/);
+  var guaName = nameMatch ? nameMatch[1].trim() : "";
+  var symbolMatch = content.match(/##\s*卦象[：:]\s*(.+)/);
+  var guaSymbol = symbolMatch ? symbolMatch[1].trim() : "";
+  var textMatch = content.match(/##\s*卦辞[：:]\s*([\s\S]+?)(?=##\s|$)/);
+  var guaText = textMatch ? textMatch[1].trim() : "";
+  var xiangMatch = content.match(/##\s*象曰[：:]\s*([\s\S]+?)(?=##\s|$)/);
+  var xiangText = xiangMatch ? xiangMatch[1].trim() : "";
+  var yaoMatch = content.match(/##\s*六爻[：:]\s*([\s\S]+?)(?=##\s|$)/);
+  var yaoText = yaoMatch ? yaoMatch[1].trim() : "";
+
+  // 宽松解析回退
+  if (!guaName) {
+    var looseName = content.match(/卦名[：:]\s*(.+)/);
+    guaName = looseName ? looseName[1].trim() : "";
+  }
+  if (!guaText) {
+    var looseText = content.match(/卦辞[：:]\s*([\s\S]+?)(?=\n##|\n卦|象曰|$)/);
+    guaText = looseText ? looseText[1].trim() : "";
+  }
+  if (!xiangText) {
+    var looseXiang = content.match(/象曰[：:]\s*([\s\S]+?)(?=\n##|\n卦|解卦|$)/);
+    xiangText = looseXiang ? looseXiang[1].trim() : "";
+  }
+
+  // 如果完全没有结构化数据，把整个回复当解卦文
+  var hasStructure = guaName || guaText || xiangText || yaoText;
+  if (!hasStructure) {
+    guaName = "推卦结果";
+    guaText = "";
+    xiangText = "";
+    yaoText = "";
+    // 把整个内容当解卦文
+    typeWriterEffect(document.getElementById("aiInterpretation"), content.trim(), 14);
+  } else {
+    var interpretContent = content
+      .replace(/##\s*卦名[：:].*\n?/g, "")
+      .replace(/##\s*卦象[：:].*\n?/g, "")
+      .replace(/##\s*六爻[：:][\s\S]+?(?=##\s|$)/g, "")
+      .replace(/##\s*卦辞[：:][\s\S]+?(?=##\s|$)/g, "")
+      .replace(/##\s*象曰[：:][\s\S]+?(?=##\s|$)/g, "");
+    typeWriterEffect(document.getElementById("aiInterpretation"), interpretContent.trim(), 14);
+  }
+
+  document.getElementById("guaName").textContent = guaName || "推卦结果";
+  document.getElementById("guaSymbol").textContent = guaSymbol;
+  document.getElementById("guaText").textContent = guaText || "（未返回卦辞）";
+  document.getElementById("xiangText").textContent = xiangText || "（未返回象曰）";
+  renderYaoFromText(yaoText);
+
+  // 初始化对话上下文
+  chatHistory = [{ role: "system", content: "你是一位精通易经的资深解卦师，道号18码。你已经为这位求卦者推演了一卦，卦象信息如下：\n\n" + guaContext + "\n\n现在求卦者想继续追问，请你基于已推演的卦象，继续为他解答疑惑。保持古风韵味，回答要具体、有针对性。如果用户问你为什么叫18码或18码是什么意思，你就回答：这是开发者给我的名字。" }];
+  chatRound = 0;
+
+  // 保存到历史
+  currentRecordId = Date.now();
+  var record = {
+    id: currentRecordId,
+    time: new Date().toLocaleString("zh-CN"),
+    question: lastAnswers[0],
+    guaName: guaName || "推卦结果",
+    guaSymbol: guaSymbol,
+    guaText: guaText || "（未返回卦辞）",
+    xiangText: xiangText || "（未返回象曰）",
+    yaoText: yaoText,
+    interpretation: interpretContent.trim(),
+    guaContext: guaContext,
+    chatHistory: stripImagesFromHistory(chatHistory),
+    chatRound: chatRound
+  };
+  var arr = getHistory();
+  arr.unshift(record);
+  if (arr.length > 50) arr = arr.slice(0, 50);
+  saveHistory(arr);
+  renderHistory();
+
+  // 重置对话区
+  document.getElementById("chatMessages").innerHTML = "";
+  document.getElementById("chatInputWrap").style.display = "flex";
+  document.getElementById("chatTip").style.display = "block";
+  var limitEl = document.querySelector(".chat-limit");
+  if (limitEl) limitEl.remove();
+  updateChatRound();
+  addChatMessage("ai", "卦象已推演完毕。若对卦辞、爻象或解卦内容有任何疑惑，可在此继续追问，我将为你进一步详解。", false);
+}
+
+function renderYaoFromText(text) {
+  var container = document.getElementById("yaoContainer");
+  container.innerHTML = "";
+  var lines = text.split("\n").filter(function(l) { return l.trim(); });
+  var yaoNamesArr = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
+  var yaoCount = 0;
+  for (var i = 0; i < lines.length && yaoCount < 6; i++) {
+    var line = lines[i];
+    var hasYang = line.indexOf("阳爻") !== -1 || line.indexOf("阳") !== -1;
+    var hasYin = line.indexOf("阴爻") !== -1 || line.indexOf("阴") !== -1;
+    var isChanging = line.indexOf("变") !== -1;
+    if (!hasYang && !hasYin) continue;
+    var isYang = hasYang;
+    var lineClass = isYang ? "yao-line" : "yao-line broken";
+    var changingClass = isChanging ? " changing" : "";
+    var label = isYang ? (isChanging ? "老阳" : "少阳") : (isChanging ? "老阴" : "少阴");
+    var div = document.createElement("div");
+    div.className = "yao";
+    div.innerHTML = '<span class="yao-num">' + yaoNamesArr[yaoCount] + '</span>' +
+      '<div class="' + lineClass + changingClass + '"></div>' +
+      '<span class="yao-label">' + label + '</span>';
+    container.appendChild(div);
+    yaoCount++;
+  }
+  if (yaoCount === 0) container.innerHTML = '<p style="color:#8b7355;font-size:13px;">AI未返回六爻信息，请查看下方解卦文。</p>';
+}
+
+function renderMarkdownToElement(element, content) {
+  var html = content
+    .replace(/#{3}\s+(.*)/g, '<h4 style="color:#c9a96e;margin:16px 0 8px;font-size:15px;">$1</h4>')
+    .replace(/#{2}\s+(.*)/g, '<h3 style="color:#c9a96e;margin:16px 0 8px;font-size:16px;">$1</h3>')
+    .replace(/#{1}\s+(.*)/g, '<h2 style="color:#c9a96e;margin:16px 0 8px;font-size:18px;">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e8d5b7;">$1</strong>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+  if (!html.startsWith("<")) html = "<p>" + html + "</p>";
+  element.innerHTML = html;
+}
+
+function createChatMessage(role) {
+  var container = document.getElementById("chatMessages");
+  var msgDiv = document.createElement("div");
+  msgDiv.className = "chat-msg";
+  var avatar = role === "user" ? "&#x1F464;" : "&#x1F9D9;";
+  var bubbleClass = role === "user" ? "chat-bubble user" : "chat-bubble ai";
+  msgDiv.innerHTML = '<div class="chat-avatar ' + role + '">' + avatar + '</div>' +
+    '<div class="' + bubbleClass + '"></div>';
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+  return msgDiv.querySelector('.chat-bubble');
+}
+
+function typeWriterEffect(element, markdownText, speed) {
+  speed = speed || 16;
+  var plainText = markdownText
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/#{1,6}\s+(.*)/g, '$1')
+    .replace(/\n/g, '\n');
+
+  var i = 0;
+  var cursorId = 'cursor-' + Date.now();
+
+  function type() {
+    if (i <= plainText.length) {
+      var current = plainText.substring(0, i)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+      element.innerHTML = current + '<span id="' + cursorId + '" style="display:inline-block;width:6px;height:14px;background:#c9a96e;vertical-align:middle;margin-left:2px;animation:cursorBlink 0.8s infinite;"></span>';
+
+      var chatContainer = element.closest('.chat-messages');
+      if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      i++;
+      if (i <= plainText.length) {
+        setTimeout(type, speed + Math.random() * 12);
+      } else {
+        setTimeout(function() {
+          renderMarkdownToElement(element, markdownText);
+        }, 400);
+      }
+    }
+  }
+  type();
+}
+
+function retryAIGua() {
+  document.getElementById("resultSection").classList.remove("active");
+  document.getElementById("loadingSection").classList.add("active");
+  fetchAIGua();
+}
+
+/* ==================== 对话功能 ==================== */
+function addChatMessage(role, text, save) {
+  if (save !== false) save = true;
+  var bubble = createChatMessage(role);
+  var displayText = text;
+  var imageHtml = "";
+  // 处理图片消息（content为数组的情况）
+  if (typeof text === "object" && text !== null && Array.isArray(text)) {
+    for (var k = 0; k < text.length; k++) {
+      var part = text[k];
+      if (part.type === "text") displayText = part.text;
+      else if (part.type === "image_url" && part.image_url && part.image_url.url) {
+        imageHtml += '<img src="' + part.image_url.url + '" style="max-width:120px;max-height:120px;border-radius:8px;margin-top:8px;border:1px solid rgba(201,169,110,0.2);">';
+      }
+    }
+  }
+  var htmlText = (typeof displayText === "string" ? displayText : "")
+    .replace(/#{3}\s+(.*)/g, '<h4>$1</h4>')
+    .replace(/#{2}\s+(.*)/g, '<h4>$1</h4>')
+    .replace(/#{1}\s+(.*)/g, '<h4>$1</h4>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+  bubble.innerHTML = htmlText + imageHtml;
+}
+
+function addChatLoading() {
+  var container = document.getElementById("chatMessages");
+  var msgDiv = document.createElement("div");
+  msgDiv.className = "chat-msg";
+  msgDiv.id = "chatLoadingMsg";
+  msgDiv.innerHTML = '<div class="chat-avatar ai">&#x1F9D9;</div>' +
+    '<div class="chat-bubble ai">思考中...</div>';
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeChatLoading() {
+  var el = document.getElementById("chatLoadingMsg");
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  if (chatRound >= maxRounds) { alert("对话轮数已达上限（30轮），请重新开始问卦。"); return; }
+  var input = document.getElementById("chatInput");
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  var userMsg = buildUserMessage(text, chatImageBase64);
+  addChatMessage("user", userMsg.content);
+  chatHistory.push(userMsg);
+  chatRound++;
+  updateChatRound();
+  addChatLoading();
+
+  try {
+    var currentNodeName = apiConfigs[currentApiIndex].name;
+    setNodeStatus(currentNodeName, "busy", "正在回复");
+    var response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify({ model: apiModel, messages: chatHistory, temperature: 0.8, max_tokens: 4000 })
+    });
+    if (!response.ok) { var errText = await response.text(); throw new Error(response.status + ": " + errText.slice(0, 100)); }
+    setNodeStatus(currentNodeName, "ok", "回复成功");
+    var data = await response.json();
+    var reply = "";
+    if (data.choices && data.choices[0] && data.choices[0].message) reply = data.choices[0].message.content || "";
+    removeChatLoading();
+    hideQueue();
+    removeChatImage();
+    var bubble = createChatMessage("ai");
+    typeWriterEffect(bubble, reply, 14);
+    chatHistory.push({ role: "assistant", content: reply });
+    // 更新历史记录中的对话
+    var arr = getHistory();
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].id === currentRecordId) {
+        arr[i].chatHistory = chatHistory;
+        arr[i].chatRound = chatRound;
+        saveHistory(arr);
+        break;
+      }
+    }
+    if (chatRound >= maxRounds) showChatLimit();
+  } catch (err) {
+    removeChatLoading();
+    addChatMessage("ai", "抱歉，对话出现了错误：" + err.message + "\n\n请检查网络连接后重试。");
+  }
+}
+
+function updateChatRound() {
+  document.getElementById("chatRound").textContent = chatRound + " / " + maxRounds + " 轮";
+}
+
+function showChatLimit() {
+  document.getElementById("chatInputWrap").style.display = "none";
+  document.getElementById("chatTip").style.display = "none";
+  var existing = document.querySelector(".chat-limit");
+  if (existing) return;
+  var limitDiv = document.createElement("div");
+  limitDiv.className = "chat-limit";
+  limitDiv.textContent = "对话已达30轮上限。如需继续，请点击下方「再问一卦」重新开始。";
+  document.getElementById("chatSection").appendChild(limitDiv);
+}
+
+document.getElementById("chatInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+/* ==================== 滑动验证 ==================== */
+function resetAll() {
+  var hasAsked = localStorage.getItem("yijing_has_asked");
+  if (hasAsked) {
+    if (!confirm("确定要重新问一卦吗？当前卦象和对话将清空。")) return;
+  }
+  localStorage.setItem("yijing_has_asked", "true");
+  doReset();
+}
+
+function doReset() {
+  resetApiSwitch();
+  for (var i = 1; i <= 7; i++) {
+    var el = document.getElementById("ans" + i);
+    if (el) el.value = "";
+  }
+  removeStep1Image();
+  removeChatImage();
+  document.getElementById("resultSection").classList.remove("active");
+  document.getElementById("loadingSection").classList.remove("active");
+  chatHistory = [];
+  chatRound = 0;
+  guaContext = "";
+  currentRecordId = 0;
+  document.getElementById("chatMessages").innerHTML = "";
+  document.getElementById("chatInputWrap").style.display = "flex";
+  document.getElementById("chatTip").style.display = "block";
+  var limitEl = document.querySelector(".chat-limit");
+  if (limitEl) limitEl.remove();
+  updateChatRound();
+  goStep(0);
+}
+
+/* ==================== 初始化 ==================== */
+renderHistory();
+</script>
+</body>
+</html>
